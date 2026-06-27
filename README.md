@@ -1,4 +1,4 @@
-﻿# Aurora Blog
+# Aurora Blog
 
 全功能个人博客系统，基于 Cloudflare Workers + D1 + R2，极光粒子 + 流星效果。
 
@@ -46,11 +46,11 @@ npm run dev
 
 ### 方式一：Cloudflare Dashboard 连接 GitHub（推荐）
 
-无需本地 CLI，无需管理密钥，Dashboard 中可视化配置所有绑定。
+无需本地 CLI，Dashboard 中可视化配置所有绑定。**绑定信息只存在 Dashboard 中，不写入代码。**
 
 #### 1. 创建 Cloudflare 资源
 
-登录 [Cloudflare Dashboard](https://dash.cloudflare.com)，创建以下资源：
+登录 [Cloudflare Dashboard](https://dash.cloudflare.com)：
 
 | 资源 | 路径 | 名称 |
 |------|------|------|
@@ -70,7 +70,7 @@ npm run dev
 | Build command | `npx wrangler deploy --outdir dist` |
 | Build output directory | `dist` |
 
-4. 点击 **Save and Deploy**
+4. 点击 **Save and Deploy**（首次会失败，因为还没配置绑定，这是正常的）
 
 #### 3. 配置绑定和密钥
 
@@ -88,9 +88,13 @@ npm run dev
 
 保存后 → **Deployments** → **Retry deployment** 让配置生效。
 
+> **原理**：`wrangler.jsonc` 中不包含绑定配置，构建时不会校验 D1/R2。绑定由 Dashboard 在部署时注入到 Worker 运行环境中。
+
 ---
 
 ### 方式二：Wrangler CLI 部署
+
+绑定信息写在本地配置文件中，不提交到仓库。
 
 ```bash
 # 登录
@@ -102,9 +106,12 @@ npx wrangler r2 bucket create aurora-blog-assets
 
 # 复制本地配置模板并填入你的值
 cp wrangler.local.example.jsonc wrangler.local.jsonc
-# 编辑 wrangler.local.jsonc，填入 database_id、JWT_SECRET、ADMIN_PASSWORD
+# 编辑 wrangler.local.jsonc，填入：
+#   - database_id
+#   - JWT_SECRET
+#   - ADMIN_PASSWORD
 
-# 设置密钥
+# 设置密钥（Worker 运行时使用）
 npx wrangler secret put JWT_SECRET
 npx wrangler secret put ADMIN_PASSWORD
 
@@ -121,39 +128,43 @@ npx wrangler deploy --config wrangler.local.jsonc
 
 ### 方式三：GitHub Actions 自动部署
 
-push 代码即自动部署。配置一次，后续全自动。
+push 代码即自动部署。绑定信息存储在 GitHub Secrets 中，CI 运行时动态注入。
 
 #### 1. 创建 Cloudflare 资源
 
-同方式一，在 Dashboard 中创建 D1 和 R2 资源，并记录 **Database ID**。
+同方式一，在 Dashboard 中创建 D1 和 R2 资源。进入 D1 数据库详情页，记录 **Database ID**。
 
 #### 2. 配置 GitHub Secrets
 
 进入 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions**：
 
-点击 **New repository secret**，添加以下 4 个 Secret：
+点击 **New repository secret**，逐个添加以下 6 个 Secret：
 
 | Secret 名称 | 说明 | 获取方式 |
 |-------------|------|----------|
-| `CLOUDFLARE_API_TOKEN` | API Token | Dashboard → 头像 → API Tokens → Create Token → Edit Cloudflare Workers |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID | Dashboard 右侧栏 |
-| `D1_DATABASE_ID` | D1 Database ID | D1 数据库详情页 |
-| `R2_BUCKET_NAME` | R2 Bucket 名称 | R2 Object Storage 中的 Bucket 名 |
-| `JWT_SECRET` | JWT 签名密钥 | 自定义一个随机长字符串 |
+| `CLOUDFLARE_API_TOKEN` | API Token | Dashboard → 头像 → API Tokens → Create Token → Edit Workers 模板 |
+| `CLOUDFLARE_ACCOUNT_ID` | 账户 ID | Dashboard 首页右侧栏 |
+| `D1_DATABASE_ID` | D1 数据库 ID | D1 → `aurora-blog-db` → 详情页 |
+| `R2_BUCKET_NAME` | R2 Bucket 名称 | R2 中的 Bucket 名，如 `aurora-blog-assets` |
+| `JWT_SECRET` | JWT 签名密钥 | 自定义随机字符串，如 `my-blog-jwt-secret-2026` |
 | `ADMIN_PASSWORD` | 管理员密码 | 自定义密码 |
 
-> **安全说明**：所有配置都存储在 GitHub Secrets 中，不会暴露在代码仓库里。`wrangler.jsonc` 中的 `database_id` 和 `bucket_name` 都是占位符，部署时由 CI 自动替换为真实值。
+添加完成后验证：
+```
+Actions → Secrets 列表应显示 6 个 Secret
+```
 
-#### 3. 配置 Worker 密钥
+#### 3. 配置 Worker 运行时密钥
 
-首次部署成功后，还需要在 Cloudflare Dashboard 中设置 Worker 密钥：
+首次部署成功后，还需要在 Cloudflare Dashboard 中设置 Worker 密钥（与 GitHub Secrets 保持一致）：
 
-1. 进入 Cloudflare Dashboard → **Workers & Pages**
-2. 找到 `aurora-blog` → 点击进入
-3. **Settings** → **Variables and Secrets**
-4. 添加两个 **Secret**（加密存储）：
+1. Cloudflare Dashboard → **Workers & Pages** → `aurora-blog`
+2. **Settings** → **Variables and Secrets**
+3. 添加两个 **Secret**（加密存储）：
    - `JWT_SECRET` = 与 GitHub Secret 中相同的值
    - `ADMIN_PASSWORD` = 与 GitHub Secret 中相同的值
+
+> **为什么两边都要配？** GitHub Secrets 仅供 CI 构建使用，Worker 运行时读取的是 Cloudflare Dashboard 中的密钥。两者是独立的。
 
 #### 4. Push 触发部署
 
@@ -163,16 +174,36 @@ git commit -m "feat: your changes"
 git push
 ```
 
-GitHub Actions 自动执行：
-1. 检出代码
-2. 安装依赖
-3. 注入 `D1_DATABASE_ID` 和 `R2_BUCKET_NAME` 到 `wrangler.jsonc`
-4. 初始化 D1 数据库表结构
-5. 构建并部署 Worker
-
 在 GitHub → **Actions** 标签页查看部署进度。
 
-#### 5. 验证部署
+#### 5. CI 执行流程详解
+
+每次 push 到 main，GitHub Actions 自动执行以下步骤：
+
+```
+┌─────────────────────────────────────────────────────┐
+│  1. 检出代码                                         │
+│     └─ wrangler.jsonc 只有基础配置，无绑定            │
+│                                                      │
+│  2. npm ci 安装依赖                                   │
+│                                                      │
+│  3. Configure Bindings（动态注入绑定）                │
+│     └─ 读取 GitHub Secrets:                          │
+│        D1_DATABASE_ID → 写入 wrangler.jsonc          │
+│        R2_BUCKET_NAME → 写入 wrangler.jsonc          │
+│     └─ 此时 wrangler.jsonc 包含完整绑定配置           │
+│                                                      │
+│  4. Init D1 Database                                 │
+│     └─ 执行 001_init.sql 建表（幂等，重复执行无影响） │
+│                                                      │
+│  5. wrangler deploy                                  │
+│     └─ 用注入后的配置构建并部署 Worker                │
+│     └─ D1 绑定: DB → aurora-blog-db                  │
+│     └─ R2 绑定: R2 → aurora-blog-assets              │
+└─────────────────────────────────────────────────────┘
+```
+
+#### 6. 验证部署
 
 1. 在 Cloudflare Dashboard → Workers & Pages 找到 Worker URL
 2. 访问首页，确认极光粒子效果正常
@@ -185,12 +216,12 @@ GitHub Actions 自动执行：
 
 | | Dashboard 直连 | Wrangler CLI | GitHub Actions |
 |--|---------------|-------------|----------------|
-| 配置位置 | Cloudflare Dashboard | 本地命令行 | GitHub Secrets |
+| 绑定配置位置 | Dashboard Settings | wrangler.local.jsonc | GitHub Secrets → CI 注入 |
+| 密钥配置位置 | Dashboard Secrets | wrangler secret | GitHub Secrets + Dashboard |
 | 部署触发 | push 到 main | 手动执行 | push 到 main |
-| 绑定配置 | Dashboard UI | wrangler.local.jsonc | CI 动态生成 |
-| 密钥管理 | Dashboard | wrangler secret | GitHub Secrets + Dashboard |
-| database_id / bucket_name | Dashboard 绑定 | 本地配置（不提交） | GitHub Secret（CI 注入） |
-| 数据库初始化 | 手动 | CLI 命令 | 自动 |
+| database_id | Dashboard 绑定 | 本地文件（不提交） | GitHub Secret |
+| bucket_name | Dashboard 绑定 | 本地文件（不提交） | GitHub Secret |
+| 数据库初始化 | 手动执行 SQL | CLI 命令 | 自动 |
 | 适合场景 | 快速上线 | 本地调试 | 自动化 CI/CD |
 
 ---
@@ -231,17 +262,18 @@ GitHub Actions 自动执行：
 ```
 aurora-blog/
 ├── .github/workflows/
-│   └── deploy.yml            # GitHub Actions 自动部署
+│   └── deploy.yml                    # GitHub Actions 自动部署
 ├── src/
-│   ├── index.ts              # Worker 入口（Hono 路由）
-│   ├── types.ts              # TypeScript 类型
-│   ├── db.ts                 # D1 数据库操作
-│   ├── auth.ts               # JWT 认证
-│   ├── routes/               # REST API
-│   ├── templates/            # HTML 页面模板
+│   ├── index.ts                      # Worker 入口（Hono 路由）
+│   ├── types.ts                      # TypeScript 类型
+│   ├── db.ts                         # D1 数据库操作
+│   ├── auth.ts                       # JWT 认证
+│   ├── routes/                       # REST API
+│   ├── templates/                    # HTML 页面模板
 │   └── migrations/
-│       └── 001_init.sql      # D1 建表 SQL
-├── wrangler.jsonc            # 基础配置（无绑定，绑定按部署方式配置）
+│       └── 001_init.sql              # D1 建表 SQL
+├── wrangler.jsonc                    # 基础配置（无绑定）
+├── wrangler.local.example.jsonc      # CLI 本地配置模板
 ├── package.json
 └── README.md
 ```
