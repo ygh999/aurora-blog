@@ -1,21 +1,11 @@
 {
   // Aurora Blog - Cloudflare Workers configuration
-  // Sensitive values are injected via GitHub Secrets during CI deployment
+  // Bindings (D1/R2) are configured per deployment method:
+  //   - Dashboard Pages: Settings → Functions → Bindings
+  //   - GitHub Actions: injected by CI from GitHub Secrets
+  //   - CLI: add bindings locally (do not commit)
   "name": "aurora-blog",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-27",
-  "compatibility_flags": ["nodejs_compat"],
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "aurora-blog-db",
-      "database_id": "__D1_DATABASE_ID__"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "R2",
-      "bucket_name": "__R2_BUCKET_NAME__"
-    }
-  ]
+  "compatibility_flags": ["nodejs_compat"]
 }

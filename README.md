@@ -100,16 +100,22 @@ npx wrangler login
 npx wrangler d1 create aurora-blog-db          # 记录 database_id
 npx wrangler r2 bucket create aurora-blog-assets
 
-# 更新 wrangler.jsonc 中的 database_id（仅本地，不提交）
+# 复制本地配置模板并填入你的值
+cp wrangler.local.example.jsonc wrangler.local.jsonc
+# 编辑 wrangler.local.jsonc，填入 database_id、JWT_SECRET、ADMIN_PASSWORD
 
 # 设置密钥
 npx wrangler secret put JWT_SECRET
 npx wrangler secret put ADMIN_PASSWORD
 
-# 初始化数据库 + 部署
+# 初始化数据库
 npx wrangler d1 execute aurora-blog-db --remote --file=src/migrations/001_init.sql
-npm run deploy
+
+# 使用本地配置部署
+npx wrangler deploy --config wrangler.local.jsonc
 ```
+
+> **注意**：`wrangler.local.jsonc` 已在 `.gitignore` 中，不会被提交到仓库。
 
 ---
 
@@ -181,7 +187,7 @@ GitHub Actions 自动执行：
 |--|---------------|-------------|----------------|
 | 配置位置 | Cloudflare Dashboard | 本地命令行 | GitHub Secrets |
 | 部署触发 | push 到 main | 手动执行 | push 到 main |
-| 绑定配置 | Dashboard UI | wrangler.jsonc | CI 注入 + Dashboard |
+| 绑定配置 | Dashboard UI | wrangler.local.jsonc | CI 动态生成 |
 | 密钥管理 | Dashboard | wrangler secret | GitHub Secrets + Dashboard |
 | database_id / bucket_name | Dashboard 绑定 | 本地配置（不提交） | GitHub Secret（CI 注入） |
 | 数据库初始化 | 手动 | CLI 命令 | 自动 |
@@ -235,7 +241,7 @@ aurora-blog/
 │   ├── templates/            # HTML 页面模板
 │   └── migrations/
 │       └── 001_init.sql      # D1 建表 SQL
-├── wrangler.jsonc            # 配置（database_id 为占位符）
+├── wrangler.jsonc            # 基础配置（无绑定，绑定按部署方式配置）
 ├── package.json
 └── README.md
 ```
