@@ -1,4 +1,4 @@
-# Aurora Blog
+﻿# Aurora Blog
 
 全功能个人博客系统，基于 Cloudflare Workers + D1 + R2，极光粒子 + 流星效果。
 
@@ -67,10 +67,10 @@ npm run dev
 |--------|-----|
 | Production branch | `main` |
 | Framework preset | `None` |
-| Build command | `npx wrangler deploy --outdir dist` |
+| Build command | `npm run build` |
 | Build output directory | `dist` |
 
-4. 点击 **Save and Deploy**（首次会失败，因为还没配置绑定，这是正常的）
+4. 点击 **Save and Deploy**
 
 #### 3. 配置绑定和密钥
 
@@ -88,7 +88,7 @@ npm run dev
 
 保存后 → **Deployments** → **Retry deployment** 让配置生效。
 
-> **原理**：`wrangler.jsonc` 中不包含绑定配置，构建时不会校验 D1/R2。绑定由 Dashboard 在部署时注入到 Worker 运行环境中。
+> **原理**：构建使用 `esbuild` 编译 TypeScript，不需要任何 Cloudflare 认证。D1/R2 绑定由 Dashboard 在部署时注入到 Worker 运行环境中。
 
 ---
 

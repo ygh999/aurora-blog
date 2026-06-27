@@ -1,19 +1,21 @@
-{
-  "name": "aurora-blog",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute aurora-blog-db --file=src/migrations/001_init.sql",
-    "db:init:local": "wrangler d1 execute aurora-blog-db --local --file=src/migrations/001_init.sql"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250620.0",
-    "typescript": "^5.8.0",
-    "wrangler": "^4.0.0"
-  },
-  "dependencies": {
-    "hono": "^4.12.27"
-  }
+﻿{
+    "name":  "aurora-blog",
+    "version":  "1.0.0",
+    "private":  true,
+    "scripts":  {
+                    "db:init:local":  "wrangler d1 execute aurora-blog-db --local --file=src/migrations/001_init.sql",
+                    "build":  "esbuild src/index.ts --bundle --outfile=dist/_worker.js --format=esm --conditions=worker",
+                    "dev":  "wrangler dev",
+                    "db:init":  "wrangler d1 execute aurora-blog-db --file=src/migrations/001_init.sql",
+                    "deploy":  "wrangler deploy"
+                },
+    "devDependencies":  {
+                            "@cloudflare/workers-types":  "^4.20250620.0",
+                            "esbuild":  "^0.28.1",
+                            "typescript":  "^5.8.0",
+                            "wrangler":  "^4.0.0"
+                        },
+    "dependencies":  {
+                         "hono":  "^4.12.27"
+                     }
 }

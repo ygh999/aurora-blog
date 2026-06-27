@@ -1,13 +1,4 @@
-import type { Env, Post, Comment, Tag, PaginatedResult } from './types';
-
-export async function initDB(db: D1Database): Promise<void> {
-  const sql = await (await import('fs')).promises.readFile('./src/migrations/001_init.sql', 'utf-8').catch(() => '');
-  // Split and execute each statement
-  const stmts = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
-  for (const stmt of stmts) {
-    await db.prepare(stmt).run();
-  }
-}
+﻿import type { Env, Post, Comment, Tag, PaginatedResult } from './types';
 
 export async function getPosts(
   db: D1Database,
