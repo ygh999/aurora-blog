@@ -18,20 +18,40 @@ jobs:
 
       - run: npm ci
 
-      # Add bindings from GitHub Secrets
+      # Rewrite wrangler.jsonc with bindings from secrets
       - name: Configure Bindings
         env:
           D1_DB_ID: ${{ secrets.D1_DATABASE_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
           KV_ID: ${{ secrets.KV_NAMESPACE_ID }}
         run: |
-          node -e "
-            const cfg = JSON.parse(require('fs').readFileSync('wrangler.jsonc','utf-8'));
-            cfg.d1_databases = [{ binding: 'DB', database_name: 'aurora-blog-db', database_id: process.env.D1_DB_ID }];
-            cfg.r2_buckets = [{ binding: 'R2', bucket_name: process.env.R2_BUCKET }];
-            cfg.kv_namespaces = [{ binding: 'CACHE', id: process.env.KV_ID }];
-            require('fs').writeFileSync('wrangler.jsonc', JSON.stringify(cfg, null, 2));
-          "
+          cat > wrangler.jsonc << EOF
+          {
+            "name": "aurora-blog",
+            "main": "src/index.ts",
+            "compatibility_date": "2026-06-27",
+            "compatibility_flags": ["nodejs_compat"],
+            "d1_databases": [
+              {
+                "binding": "DB",
+                "database_name": "aurora-blog-db",
+                "database_id": "${D1_DB_ID}"
+              }
+            ],
+            "r2_buckets": [
+              {
+                "binding": "R2",
+                "bucket_name": "${R2_BUCKET}"
+              }
+            ],
+            "kv_namespaces": [
+              {
+                "binding": "CACHE",
+                "id": "${KV_ID}"
+              }
+            ]
+          }
+          EOF
           echo "--- wrangler.jsonc ---"
           cat wrangler.jsonc
 
