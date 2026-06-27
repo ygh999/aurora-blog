@@ -10,7 +10,7 @@
 - **Markdown 编辑器**：实时预览，代码高亮
 - **评论系统**：访客评论 + 管理员审核
 - **标签分类**：文章标签管理
-- **图片上传**：R2 对象存储
+- **图片上传**：R2 对象存储\n- **KV 缓存**：文章列表/详情/标签缓存，自动失效
 - **管理后台**：仪表盘、文章管理、评论管理
 - **JWT 认证**：PBKDF2 密码哈希
 - **GitHub Actions CI/CD**：push 自动部署
@@ -22,7 +22,7 @@
 | Runtime | Cloudflare Workers |
 | Framework | Hono |
 | Database | D1 (SQLite) |
-| Storage | R2 |
+| Storage | R2 |\n| Cache | KV |
 | Language | TypeScript |
 | Frontend | 内嵌 HTML + Canvas 粒子 + marked.js |
 | CI/CD | GitHub Actions |
@@ -56,6 +56,7 @@ npm run dev
 |------|------|------|
 | D1 Database | Workers & Pages → D1 | `aurora-blog-db` |
 | R2 Bucket | R2 Object Storage | `aurora-blog-assets` |
+| KV Namespace | Workers & Pages → KV | `aurora-blog-cache` |
 
 #### 2. 连接 GitHub 仓库
 
@@ -82,6 +83,9 @@ npm run dev
 **R2 绑定**：
 - Add binding → Variable name: `R2` → Bucket: `aurora-blog-assets`
 
+**KV 绑定**：
+- KV namespace bindings → Add binding → Variable name: `CACHE` → Namespace: `aurora-blog-cache`
+
 **密钥**（Environment Variables → 加密存储）：
 - `JWT_SECRET` → 一个随机长字符串
 - `ADMIN_PASSWORD` → 管理员密码
@@ -103,11 +107,13 @@ npx wrangler login
 # 创建资源
 npx wrangler d1 create aurora-blog-db          # 记录 database_id
 npx wrangler r2 bucket create aurora-blog-assets
+npx wrangler kv namespace create CACHE         # 记录 id
 
 # 复制本地配置模板并填入你的值
 cp wrangler.local.example.jsonc wrangler.local.jsonc
 # 编辑 wrangler.local.jsonc，填入：
 #   - database_id
+#   - kv namespace id
 #   - JWT_SECRET
 #   - ADMIN_PASSWORD
 
@@ -191,6 +197,7 @@ git push
 │     └─ 读取 GitHub Secrets:                          │
 │        D1_DATABASE_ID → 写入 wrangler.jsonc          │
 │        R2_BUCKET_NAME → 写入 wrangler.jsonc          │
+│        KV_NAMESPACE_ID → 写入 wrangler.jsonc         │
 │     └─ 此时 wrangler.jsonc 包含完整绑定配置           │
 │                                                      │
 │  4. Init D1 Database                                 │
@@ -200,6 +207,7 @@ git push
 │     └─ 用注入后的配置构建并部署 Worker                │
 │     └─ D1 绑定: DB → aurora-blog-db                  │
 │     └─ R2 绑定: R2 → aurora-blog-assets              │
+│     └─ KV 绑定: CACHE → aurora-blog-cache            │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -226,7 +234,7 @@ git push
 
 ---
 
-## API 文档
+## KV 缓存策略\n\n| 缓存项 | TTL | 说明 |\n|--------|-----|------|\n| 文章列表 | 120s | 首页、分页 |\n| 文章详情 | 180s | 按 slug |\n| 标签列表 | 300s | 全量 |\n\n缓存自动失效：创建/更新/删除操作自动清除相关缓存。\n\n---\n\n## API 文档
 
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
@@ -267,7 +275,7 @@ aurora-blog/
 │   ├── index.ts                      # Worker 入口（Hono 路由）
 │   ├── types.ts                      # TypeScript 类型
 │   ├── db.ts                         # D1 数据库操作
-│   ├── auth.ts                       # JWT 认证
+│   ├── auth.ts                       # JWT 认证\n│   ├── cache.ts                    # KV 缓存层
 │   ├── routes/                       # REST API
 │   ├── templates/                    # HTML 页面模板
 │   └── migrations/
