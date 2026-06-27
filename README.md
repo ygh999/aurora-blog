@@ -176,26 +176,145 @@ npm run deploy
 
 ### 方式三：GitHub Actions 自动部署
 
-push 代码即自动部署，已在仓库中配置好 `.github/workflows/deploy.yml`。
+push 代码即自动部署。已在仓库中配置好 `.github/workflows/deploy.yml`。
 
-#### 第一步：配置 GitHub Secrets
+#### 第一步：准备 Cloudflare 资源
 
-进入 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**：
+在 Cloudflare Dashboard 中创建所需的资源：
 
-| Secret 名称 | 值 |
-|-------------|-----|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
+1. **获取 Account ID**
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+   - 右侧栏可以看到 **Account ID**
 
-#### 第二步：Push 触发部署
+2. **创建 API Token**
+   - 点击右上角头像 → **My Profile** → **API Tokens**
+   - 点击 **Create Token**
+   - 选择 **Edit Cloudflare Workers** 模板
+   - 复制生成的 Token
+
+3. **创建 D1 数据库**
+   - 左侧 → **Workers & Pages** → **D1**
+   - 点击 **Create database** → 名称输入 `aurora-blog-db`
+   - 创建后进入数据库详情页，复制 **Database ID**
+
+4. **创建 R2 Bucket**
+   - 左侧 → **R2 Object Storage**
+   - 点击 **Create bucket** → 名称输入 `aurora-blog-assets`
+
+#### 第二步：更新 wrangler.jsonc 配置
+
+编辑项目根目录的 `wrangler.jsonc`，将 `database_id` 替换为第一步获取的真实值：
+
+```jsonc
+{
+  "name": "aurora-blog",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "JWT_SECRET": "dev-secret-change-in-production",
+    "ADMIN_PASSWORD": "admin123"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aurora-blog-db",
+      "database_id": "你的真实database_id"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "aurora-blog-assets"
+    }
+  ]
+}
+```
+
+> **注意**：`vars` 中的 `JWT_SECRET` 和 `ADMIN_PASSWORD` 仅用于本地开发，部署后会被 GitHub Secrets 中的值覆盖。
+
+#### 第三步：配置 GitHub Secrets
+
+进入 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** → 点击 **New repository secret**：
+
+| Secret 名称 | 说明 | 值来源 |
+|-------------|------|--------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token | 第一步创建的 Token |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID | Dashboard 右侧栏 |
+
+添加完成后，Secrets 列表应显示：
+```
+CLOUDFLARE_API_TOKEN    Updated X minutes ago
+CLOUDFLARE_ACCOUNT_ID   Updated X minutes ago
+```
+
+#### 第四步：Push 触发首次部署
 
 ```bash
-git add .
-git commit -m "your changes"
+# 确保 wrangler.jsonc 已更新 database_id
+git add wrangler.jsonc
+git commit -m "config: update D1 database_id"
 git push
 ```
 
-GitHub Actions 会自动运行，部署完成后在 Actions 页面查看结果。
+GitHub Actions 会自动运行部署流程：
+1. 检出代码
+2. 安装依赖 (`npm ci`)
+3. 初始化远程 D1 数据库表结构
+4. 构建并部署 Worker
+
+在 GitHub 仓库 → **Actions** 标签页可以查看部署进度。
+
+#### 第五步：配置 Worker 密钥
+
+首次部署成功后，需要设置 JWT 密钥和管理员密码。
+
+**方式 A：通过 Cloudflare Dashboard（推荐）**
+
+1. 登录 Cloudflare Dashboard → **Workers & Pages**
+2. 找到 `aurora-blog` → 点击进入
+3. **Settings** → **Variables and Secrets**
+4. 点击 **Add** → 选择 **Secret**
+   - Variable name: `JWT_SECRET`
+   - Value: 输入一个随机长字符串（如 `my-super-secret-jwt-key-2026`）
+   - 点击 **Encrypt and save**
+5. 再次点击 **Add** → 选择 **Secret**
+   - Variable name: `ADMIN_PASSWORD`
+   - Value: 输入管理员密码（如 `MySecurePass123!`）
+   - 点击 **Encrypt and save**
+
+**方式 B：通过 Wrangler CLI（本地）**
+
+```bash
+# 确保已登录
+npx wrangler login
+
+# 设置密钥
+npx wrangler secret put JWT_SECRET
+# 输入一个随机长字符串
+
+npx wrangler secret put ADMIN_PASSWORD
+# 输入管理员密码
+```
+
+#### 第六步：验证部署
+
+1. 访问 Worker URL（在 Cloudflare Dashboard → Workers & Pages 中查看）
+2. 打开首页，确认极光粒子效果正常
+3. 访问 `/admin/login`，使用 `admin` + 你设置的密码登录
+4. 在管理后台创建第一篇文章
+
+#### 后续更新
+
+之后每次修改代码并 push，GitHub Actions 会自动部署：
+
+```bash
+# 修改代码后
+git add .
+git commit -m "feat: your changes"
+git push
+# 自动部署...
+```
 
 ---
 
@@ -203,9 +322,11 @@ GitHub Actions 会自动运行，部署完成后在 Actions 页面查看结果�
 
 | | Dashboard 直连 | Wrangler CLI | GitHub Actions |
 |--|---------------|-------------|----------------|
-| 配置位置 | Cloudflare Dashboard | 本地命令行 | GitHub Secrets |
+| 配置位置 | Cloudflare Dashboard | 本地命令行 | GitHub Secrets + wrangler.jsonc |
 | 部署触发 | push 到 main | 手动执行命令 | push 到 main |
 | 绑定配置 | Dashboard UI | wrangler.jsonc | wrangler.jsonc |
+| 密钥管理 | Dashboard Secrets | wrangler secret | Dashboard 或 wrangler secret |
+| 数据库初始化 | 手动执行 SQL | CLI 命令 | 自动（deploy.yml） |
 | 适合场景 | 快速上线 | 本地调试 | 自动化 CI/CD |
 | 复杂度 | 低 | 中 | 中 |
 
