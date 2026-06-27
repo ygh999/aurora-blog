@@ -1,17 +1,11 @@
 {
   // Aurora Blog - Cloudflare Workers configuration
   // Bindings are configured per deployment method:
-  //   - Dashboard Pages: Settings → Functions → Bindings
+  //   - Dashboard Pages: Settings > Functions > Bindings
   //   - GitHub Actions: injected by CI from GitHub Secrets
   //   - CLI: add bindings locally (do not commit)
   "name": "aurora-blog",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-27",
-  "compatibility_flags": ["nodejs_compat"],
-  "kv_namespaces": [
-    {
-      "binding": "CACHE",
-      "id": "__KV_NAMESPACE_ID__"
-    }
-  ]
+  "compatibility_flags": ["nodejs_compat"]
 }

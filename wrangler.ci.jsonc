@@ -1,0 +1,27 @@
+{
+  // GitHub Actions deployment template.
+  // CI copies this file to wrangler.jsonc and replaces placeholders with GitHub Secrets via sed.
+  "name": "aurora-blog",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aurora-blog-db",
+      "database_id": "__D1_DATABASE_ID__"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "__R2_BUCKET_NAME__"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "__KV_NAMESPACE_ID__"
+    }
+  ]
+}

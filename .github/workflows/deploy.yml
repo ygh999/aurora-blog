@@ -18,42 +18,26 @@ jobs:
 
       - run: npm ci
 
-      # Rewrite wrangler.jsonc with bindings from secrets
+      # Build a deploy config from the JSONC template.
+      # Do not JSON.parse wrangler.jsonc: JSONC comments are valid for Wrangler but invalid JSON.
       - name: Configure Bindings
         env:
           D1_DB_ID: ${{ secrets.D1_DATABASE_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
           KV_ID: ${{ secrets.KV_NAMESPACE_ID }}
         run: |
-          cat > wrangler.jsonc << EOF
-          {
-            "name": "aurora-blog",
-            "main": "src/index.ts",
-            "compatibility_date": "2026-06-27",
-            "compatibility_flags": ["nodejs_compat"],
-            "d1_databases": [
-              {
-                "binding": "DB",
-                "database_name": "aurora-blog-db",
-                "database_id": "${D1_DB_ID}"
-              }
-            ],
-            "r2_buckets": [
-              {
-                "binding": "R2",
-                "bucket_name": "${R2_BUCKET}"
-              }
-            ],
-            "kv_namespaces": [
-              {
-                "binding": "CACHE",
-                "id": "${KV_ID}"
-              }
-            ]
-          }
-          EOF
-          echo "--- wrangler.jsonc ---"
-          cat wrangler.jsonc
+          test -n "${D1_DB_ID}"
+          test -n "${R2_BUCKET}"
+          test -n "${KV_ID}"
+          cp wrangler.ci.jsonc wrangler.jsonc
+          sed -i "s|__D1_DATABASE_ID__|${D1_DB_ID}|g" wrangler.jsonc
+          sed -i "s|__R2_BUCKET_NAME__|${R2_BUCKET}|g" wrangler.jsonc
+          sed -i "s|__KV_NAMESPACE_ID__|${KV_ID}|g" wrangler.jsonc
+          if grep -q "__.*__" wrangler.jsonc; then
+            echo "Unreplaced placeholder found in wrangler.jsonc"
+            exit 1
+          fi
+          echo "Wrangler bindings configured from GitHub Secrets."
 
       # Initialize D1 database (idempotent)
       - name: Init D1 Database

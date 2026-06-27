@@ -10,7 +10,8 @@
 - **Markdown 编辑器**：实时预览，代码高亮
 - **评论系统**：访客评论 + 管理员审核
 - **标签分类**：文章标签管理
-- **图片上传**：R2 对象存储\n- **KV 缓存**：文章列表/详情/标签缓存，自动失效
+- **图片上传**：R2 对象存储
+- **KV 缓存**：文章列表/详情/标签缓存，自动失效
 - **管理后台**：仪表盘、文章管理、评论管理
 - **JWT 认证**：PBKDF2 密码哈希
 - **GitHub Actions CI/CD**：push 自动部署
@@ -22,7 +23,8 @@
 | Runtime | Cloudflare Workers |
 | Framework | Hono |
 | Database | D1 (SQLite) |
-| Storage | R2 |\n| Cache | KV |
+| Storage | R2 |
+| Cache | KV |
 | Language | TypeScript |
 | Frontend | 内嵌 HTML + Canvas 粒子 + marked.js |
 | CI/CD | GitHub Actions |
@@ -138,13 +140,17 @@ push 代码即自动部署。绑定信息存储在 GitHub Secrets 中，CI 运�
 
 #### 1. 创建 Cloudflare 资源
 
-同方式一，在 Dashboard 中创建 D1 和 R2 资源。进入 D1 数据库详情页，记录 **Database ID**。
+同方式一，在 Dashboard 中创建 D1、R2、KV 资源。记录：
+
+- D1：`aurora-blog-db` 的 **Database ID**
+- R2：Bucket 名称，例如 `aurora-blog-assets`
+- KV：`aurora-blog-cache` 的 **Namespace ID**
 
 #### 2. 配置 GitHub Secrets
 
 进入 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions**：
 
-点击 **New repository secret**，逐个添加以下 6 个 Secret：
+点击 **New repository secret**，逐个添加以下 7 个 Secret：
 
 | Secret 名称 | 说明 | 获取方式 |
 |-------------|------|----------|
@@ -152,12 +158,13 @@ push 代码即自动部署。绑定信息存储在 GitHub Secrets 中，CI 运�
 | `CLOUDFLARE_ACCOUNT_ID` | 账户 ID | Dashboard 首页右侧栏 |
 | `D1_DATABASE_ID` | D1 数据库 ID | D1 → `aurora-blog-db` → 详情页 |
 | `R2_BUCKET_NAME` | R2 Bucket 名称 | R2 中的 Bucket 名，如 `aurora-blog-assets` |
+| `KV_NAMESPACE_ID` | KV Namespace ID | Workers & Pages → KV → `aurora-blog-cache` → Settings |
 | `JWT_SECRET` | JWT 签名密钥 | 自定义随机字符串，如 `my-blog-jwt-secret-2026` |
 | `ADMIN_PASSWORD` | 管理员密码 | 自定义密码 |
 
 添加完成后验证：
 ```
-Actions → Secrets 列表应显示 6 个 Secret
+Actions → Secrets 列表应显示 7 个 Secret
 ```
 
 #### 3. 配置 Worker 运行时密钥
@@ -194,10 +201,11 @@ git push
 │  2. npm ci 安装依赖                                   │
 │                                                      │
 │  3. Configure Bindings（动态注入绑定）                │
-│     └─ 读取 GitHub Secrets:                          │
-│        D1_DATABASE_ID → 写入 wrangler.jsonc          │
-│        R2_BUCKET_NAME → 写入 wrangler.jsonc          │
-│        KV_NAMESPACE_ID → 写入 wrangler.jsonc         │
+│     └─ 复制 wrangler.ci.jsonc 到 wrangler.jsonc       │
+│     └─ 使用 sed 替换模板占位符：                      │
+│        __D1_DATABASE_ID__ ← D1_DATABASE_ID           │
+│        __R2_BUCKET_NAME__ ← R2_BUCKET_NAME           │
+│        __KV_NAMESPACE_ID__ ← KV_NAMESPACE_ID         │
 │     └─ 此时 wrangler.jsonc 包含完整绑定配置           │
 │                                                      │
 │  4. Init D1 Database                                 │
@@ -210,6 +218,8 @@ git push
 │     └─ KV 绑定: CACHE → aurora-blog-cache            │
 └─────────────────────────────────────────────────────┘
 ```
+
+> **为什么用 sed？** `wrangler.jsonc` / `wrangler.ci.jsonc` 允许写注释，属于 JSONC，不是严格 JSON。CI 中不能使用 `JSON.parse()` 解析它，否则会出现 `Expected property name or '}' in JSON`。当前 workflow 只做文本占位符替换，不解析 JSONC。
 
 #### 6. 验证部署
 
@@ -229,12 +239,25 @@ git push
 | 部署触发 | push 到 main | 手动执行 | push 到 main |
 | database_id | Dashboard 绑定 | 本地文件（不提交） | GitHub Secret |
 | bucket_name | Dashboard 绑定 | 本地文件（不提交） | GitHub Secret |
+| KV namespace id | Dashboard 绑定 | 本地文件（不提交） | GitHub Secret |
 | 数据库初始化 | 手动执行 SQL | CLI 命令 | 自动 |
 | 适合场景 | 快速上线 | 本地调试 | 自动化 CI/CD |
 
 ---
 
-## KV 缓存策略\n\n| 缓存项 | TTL | 说明 |\n|--------|-----|------|\n| 文章列表 | 120s | 首页、分页 |\n| 文章详情 | 180s | 按 slug |\n| 标签列表 | 300s | 全量 |\n\n缓存自动失效：创建/更新/删除操作自动清除相关缓存。\n\n---\n\n## API 文档
+## KV 缓存策略
+
+| 缓存项 | TTL | 说明 |
+|--------|-----|------|
+| 文章列表 | 120s | 首页、分页 |
+| 文章详情 | 180s | 按 slug |
+| 标签列表 | 300s | 全量 |
+
+缓存自动失效：创建/更新/删除操作自动清除相关缓存。
+
+---
+
+## API 文档
 
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
@@ -275,12 +298,14 @@ aurora-blog/
 │   ├── index.ts                      # Worker 入口（Hono 路由）
 │   ├── types.ts                      # TypeScript 类型
 │   ├── db.ts                         # D1 数据库操作
-│   ├── auth.ts                       # JWT 认证\n│   ├── cache.ts                    # KV 缓存层
+│   ├── auth.ts                       # JWT 认证
+│   ├── cache.ts                      # KV 缓存层
 │   ├── routes/                       # REST API
 │   ├── templates/                    # HTML 页面模板
 │   └── migrations/
 │       └── 001_init.sql              # D1 建表 SQL
 ├── wrangler.jsonc                    # 基础配置（无绑定）
+├── wrangler.ci.jsonc                 # GitHub Actions 配置模板（占位符由 sed 替换）
 ├── wrangler.local.example.jsonc      # CLI 本地配置模板
 ├── package.json
 └── README.md

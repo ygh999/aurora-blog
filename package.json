@@ -4,7 +4,7 @@
     "private":  true,
     "scripts":  {
                     "db:init:local":  "wrangler d1 execute aurora-blog-db --local --file=src/migrations/001_init.sql",
-                    "build":  "esbuild src/index.ts --bundle --outfile=dist/_worker.js --format=esm --conditions=worker",
+                    "build":  "esbuild ./src/index.ts --bundle --outfile=dist/_worker.js --format=esm --conditions=worker",
                     "dev":  "wrangler dev",
                     "db:init":  "wrangler d1 execute aurora-blog-db --file=src/migrations/001_init.sql",
                     "deploy":  "wrangler deploy"
