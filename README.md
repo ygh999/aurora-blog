@@ -1,4 +1,4 @@
-# Aurora Blog
+﻿# Aurora Blog
 
 全功能个人博客系统，基于 Cloudflare Workers + D1 + R2，极光粒子 + 流星效果。
 
@@ -132,10 +132,11 @@ push 代码即自动部署。配置一次，后续全自动。
 | `CLOUDFLARE_API_TOKEN` | API Token | Dashboard → 头像 → API Tokens → Create Token → Edit Cloudflare Workers |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID | Dashboard 右侧栏 |
 | `D1_DATABASE_ID` | D1 Database ID | D1 数据库详情页 |
+| `R2_BUCKET_NAME` | R2 Bucket 名称 | R2 Object Storage 中的 Bucket 名 |
 | `JWT_SECRET` | JWT 签名密钥 | 自定义一个随机长字符串 |
 | `ADMIN_PASSWORD` | 管理员密码 | 自定义密码 |
 
-> **安全说明**：所有敏感信息都存储在 GitHub Secrets 中，不会暴露在代码仓库里。`wrangler.jsonc` 中的 `database_id` 是占位符，部署时由 CI 自动替换。
+> **安全说明**：所有配置都存储在 GitHub Secrets 中，不会暴露在代码仓库里。`wrangler.jsonc` 中的 `database_id` 和 `bucket_name` 都是占位符，部署时由 CI 自动替换为真实值。
 
 #### 3. 配置 Worker 密钥
 
@@ -159,7 +160,7 @@ git push
 GitHub Actions 自动执行：
 1. 检出代码
 2. 安装依赖
-3. 注入 `D1_DATABASE_ID` 到 `wrangler.jsonc`
+3. 注入 `D1_DATABASE_ID` 和 `R2_BUCKET_NAME` 到 `wrangler.jsonc`
 4. 初始化 D1 数据库表结构
 5. 构建并部署 Worker
 
@@ -182,7 +183,7 @@ GitHub Actions 自动执行：
 | 部署触发 | push 到 main | 手动执行 | push 到 main |
 | 绑定配置 | Dashboard UI | wrangler.jsonc | CI 注入 + Dashboard |
 | 密钥管理 | Dashboard | wrangler secret | GitHub Secrets + Dashboard |
-| database_id | Dashboard 绑定 | 本地配置（不提交） | GitHub Secret（CI 注入） |
+| database_id / bucket_name | Dashboard 绑定 | 本地配置（不提交） | GitHub Secret（CI 注入） |
 | 数据库初始化 | 手动 | CLI 命令 | 自动 |
 | 适合场景 | 快速上线 | 本地调试 | 自动化 CI/CD |
 

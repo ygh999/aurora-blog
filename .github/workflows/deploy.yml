@@ -18,11 +18,12 @@ jobs:
 
       - run: npm ci
 
-      # Inject database_id from GitHub Secret into wrangler.jsonc
-      - name: Configure D1 Database ID
+      # Inject Cloudflare resource IDs from GitHub Secrets
+      - name: Configure Cloudflare Bindings
         run: |
-          sed -i 's/REPLACE_VIA_GITHUB_SECRET_OR_DASHBOARD/${{ secrets.D1_DATABASE_ID }}/g' wrangler.jsonc
-          echo "--- wrangler.jsonc ---"
+          sed -i 's/__D1_DATABASE_ID__/${{ secrets.D1_DATABASE_ID }}/g' wrangler.jsonc
+          sed -i 's/__R2_BUCKET_NAME__/${{ secrets.R2_BUCKET_NAME }}/g' wrangler.jsonc
+          echo "--- wrangler.jsonc (sanitized) ---"
           cat wrangler.jsonc
 
       # Initialize D1 database (idempotent)

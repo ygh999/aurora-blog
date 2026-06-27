@@ -1,6 +1,6 @@
 {
   // Aurora Blog - Cloudflare Workers configuration
-  // Do NOT commit real database_id or secrets to this file
+  // Sensitive values are injected via GitHub Secrets during CI deployment
   "name": "aurora-blog",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-27",
@@ -9,13 +9,13 @@
     {
       "binding": "DB",
       "database_name": "aurora-blog-db",
-      "database_id": "REPLACE_VIA_GITHUB_SECRET_OR_DASHBOARD"
+      "database_id": "__D1_DATABASE_ID__"
     }
   ],
   "r2_buckets": [
     {
       "binding": "R2",
-      "bucket_name": "aurora-blog-assets"
+      "bucket_name": "__R2_BUCKET_NAME__"
     }
   ]
 }
