@@ -5,3 +5,6 @@ dist/
 .DS_Store
 
 gh.exe
+
+# Local wrangler overrides
+wrangler.local.*

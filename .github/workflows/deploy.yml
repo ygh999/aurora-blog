@@ -18,6 +18,13 @@ jobs:
 
       - run: npm ci
 
+      # Inject database_id from GitHub Secret into wrangler.jsonc
+      - name: Configure D1 Database ID
+        run: |
+          sed -i 's/REPLACE_VIA_GITHUB_SECRET_OR_DASHBOARD/${{ secrets.D1_DATABASE_ID }}/g' wrangler.jsonc
+          echo "--- wrangler.jsonc ---"
+          cat wrangler.jsonc
+
       # Initialize D1 database (idempotent)
       - name: Init D1 Database
         run: npx wrangler d1 execute aurora-blog-db --remote --file=src/migrations/001_init.sql

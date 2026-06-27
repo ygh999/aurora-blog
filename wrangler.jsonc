@@ -1,18 +1,15 @@
 {
-  // Aurora Blog - Full-featured blog system
+  // Aurora Blog - Cloudflare Workers configuration
+  // Do NOT commit real database_id or secrets to this file
   "name": "aurora-blog",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-27",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "JWT_SECRET": "dev-secret-change-in-production",
-    "ADMIN_PASSWORD": "admin123"
-  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "aurora-blog-db",
-      "database_id": "placeholder-replace-with-actual-id"
+      "database_id": "REPLACE_VIA_GITHUB_SECRET_OR_DASHBOARD"
     }
   ],
   "r2_buckets": [
